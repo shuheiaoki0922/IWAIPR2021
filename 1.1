@@ -1,0 +1,1003 @@
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.20 of 2017/10/04
+%
+\documentclass[runningheads]{llncs}
+
+%\usepackage{setspace}
+%\doublespacing
+\usepackage{latexsym}
+\def\qed{\hfill $\Box$}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{cite}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{marvosym}
+\usepackage{pifont}
+\usepackage{ascmac}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{subcaption}
+\usepackage{comment}
+\newcommand{\argmax}{\mathop{\rm arg~max}\limits}
+\newcommand{\argmin}{\mathop{\rm arg~min}\limits}
+\usepackage{tabularx}
+\setlength{\oddsidemargin}{1.0cm}
+\setlength{\evensidemargin}{1.0cm}
+%\renewcommand{\floatpagefraction}{0.7}
+%\renewcommand{\baselinestretch}{2}
+\renewcommand{\arraystretch}{1.0}
+%\renewcommand{\refname}{文献}
+% \newcommand{\Nnm}{${\rm N_{n,m}}$}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following line
+% to display URLs in blue roman font according to Springer's eBook style:
+% \renewcommand\UrlFont{\color{blue}\rmfamily}
+
+\begin{document}
+%
+\title{Balancing of Samples in Class Hierarchy} %\thanks{Supported by organization x.}}
+%
+%\titlerunning{Abbreviated paper title}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%\author{}%Shuhei Aoki \and Mineichi Kudo} %\orcidID{0000-0003-1013-3870}}
+%\author{Shuhei Aoki\and %\inst{}\orcidID{} \and
+%Mineichi Kudo} %\inst{}}%\orcidID{}} 
+
+%Third Author\inst{3}\orcidID{2222--3333-4444-5555}}
+%
+
+%\authorrunning{S.Aoki and M.Kudo}
+%\authorrunning{Aoki and Kudo}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+%\institute{Hokkaido University, Sapporo, 060-814, JAPAN\\
+%\email{\{shuhei\_aoki,mine\}@ist.hokudai.ac.jp}}
+
+%\email{$\bf shuhei\_aoki@ist.hokudai.ac.jp$}\\
+%\url{} %\and
+%ABC Institute, Rupert-Karls-University Heidelberg, Heidelberg, Germany \\
+%\email{\{abc,lncs\}@uni-heidelberg.de}}
+%}
+\maketitle              % typeset the header of the contribution
+%
+\begin{abstract}
+%The abstract should briefly summarize the contents of the paper in
+%150--250 words.
+In real-world classification problems, it is often the case that some classes (head classes) have large numbers of samples and the other classes (tail classes) have small numbers of samples. Such imbalance problems have been widely studied for a long time, and various methods have been proposed, such as oversampling from tail classes or heavy weighting to tail classes. However, these approaches lose the effectiveness when the number of classes is very large and imbalance is remarkable. Such a problem is called a long-tailed problem where there are a few head classes and many tail classes. In this paper, we construct a class hierarchy (a binary tree) where the numbers of samples are almost balanced in left and right children of each node. Some experiments demonstrated the effectiveness of the proposed approach.
+%132words
+% Learning from such a biased data results in  degradation of classification rate of tail classes. However, correct classification of tail classes is more important than that of head classes in some applications such as diagnosis of rare diseases.
+
+\keywords{Imbalance problems  \and Long-tailed problems \and Hierarchical classification
+\and Class hierarchy \and Class decision trees.}
+\end{abstract}
+%
+
+\section{Introduction}
+An \it Imbalanced Dataset \rm is a dataset that has a large difference in the number of samples between head classes and tail classes. It is well known that classifiers trained from such a dataset underestimate tail classes because misclassification of them does not give a large impact on the total accuracy\cite{4}. Recently many practical problems are largely imbalanced such as anomaly detection, medical diagnosis and e-mail filtering. Imbalance problems have been widely studied for a long time, and various methods have been proposed\cite{14,3,8,2,4}. However, when the number of classes is very large and many tail classes have extremely small numbers of samples, conventional methods such as cost-sensitive learning\cite{3} or re-sampling\cite{14} cannot work well because of the difficulty of tuning the parameters. Extremely imbalanced problems are also called \it long-tailed problems. \rm An example is shown in Fig.1. A class hierarchy\cite{5,6} is a promising approach for dealing with many-class, but not always imbalance, problems, and is typically realized as a binary tree with nodes consisting of a class subset. A class hierarchy can be constructed in top down manner by dividing a class set into its two disjoint subsets and repeat the procedure until each subset consists of only one class\cite{5,6,15}. However, much attention have not been paid for the imbalance of samples so far in those trees. In this paper, we propose a construction algorithm of such a binary tree that the numbers of samples of left and right children are well balanced in each node. It is, therefore, expected to mitigate the imbalance in long-tailed problems at least in each node, bringing a higher accuracy on tail classes.
+
+\begin{figure}[tbp]
+\includegraphics[width=\textwidth,height=5cm]{fig1.png}
+\caption{Long-tailed distribution of dataset \tt birds \rm (the classes are sorted in descending order of sample sizes).} \label{fig1}
+\end{figure}
+
+
+\section{Related Works}
+There are mainly three approaches for coping with imbalance problems: 1) Data level approaches: re-sample, that is, conduct over-sampling from tail classes or under-sampling from head classes\cite{14}, 2) Algorithm level approaches: remodel existing classification algorithms to bias tail classes\cite{3} and 3) Ensamble-based approaches: combine ensemble learning algorithms with cost-sensitive learning or re-sampling\cite{8}. Some of them consider the cases including classes with extremely small numbers of samples\cite{2}. However, few methods have paid a sufficient attention to long-tailed datasets where a very large number of classes exists.\\
+On the other hand, hierarchical classification has gained a significant attention in dealing with multi-class problems\cite{12,13}. Two well-known methods are decision directed acyclic graphs (DDAGs)\cite{13} and binary hierarchical decision trees (BHDTs)\cite{12}. DDAGs train $\binom{C}{2}$ classifiers (C: the number of  classes) and use a directed acyclic graph (DAG) to compare a class pair at a node. The classes other than the chosen pair of classes are ignored at that node, so that the samples of those classes are passed into both of children nodes, resulting in the existence of some merge nodes to recombine the separated samples of the same class. BHDTs use a decision tree that divides a class set into two class subsets at a node. As a result, it has C leaves of a single class. In general, BHDTs are more efficient than DDAGs in the number of comparison times\cite{12}. One of the BHDT methods is Class Decision Tree (CDT)\cite{5,6}. In this paper, we focus on CDT and modify it so as to have a good balance in sample sizes at each node.
+\begin{comment}
+\subsection{Approaches for coping with imbalance problems}
+A typical data level approach is re-sampling. Re-sampling includes oversampling and under sampling. Oversampling is a method of apparently increasing minority classes of data by sampling, so it does not increase essential information and is likely to occur overfitting\cite{8}. Undersampling is a method of apparently reducing the data of majority classes by sampling, and it is pointed out that important information may be lost \cite{16}.The most famous oversampling method is SMOTE\cite{8}, which generates artificial data by interpolation.
+Algorithm level approaches address imbalance problem by remodel the conventional learning algorithms to bias minority classes. The most widely used method is cost-sensitive learning\cite{3,4,5}. Instead of the usual same cost, minority classes are weighted higher costs. Cost-sensitive learning can be incorporated into various classifiers such as bayesian classifier\cite{3}, decision tree\cite{4} and neural network\cite{5}. Although the problem is how to determine the cost, it is difficult to quantify the importance of classification. 
+\end{comment}
+
+\subsection{Class Decision Trees (CDTs)}
+The top-down construction of a CDT\cite{5} starts with the entire class set at the root node, and repeats a division of a class set into its disjoint two subsets until each node has one class only. Although there is a bottom-up method shown in\cite{6}, in this paper, we adopt a top-down way since we can control better the balance of samples in a top-down way.
+\begin{comment}
+Please note that the first paragraph of a section or subsection is
+not indented. The first paragraph that follows a table, figure,
+equation etc. does not need an indent, either.
+Subsequent paragraphs, however, are indented.
+\end{comment}
+
+\section{Sample Balanced Class Hierarchy (SBCH)}
+Here, we propose the idea of Sample Balanced Class Hierarchy (SBCH). In long-tailed distributions, tail classes occupy the majority in number, but their samples are extremely small, typically one, two or three (see Fig.~\ref{fig1}). On the contrary, head classes are only a few but cover a majority of samples. Thus, even classifiers with a high total accuracy often perform poorly for tail classes. Our idea to cope with such a large imbalance is to divide the entire set of classes into two class subsets having almost equal number of samples, and repeat this division so as to construct an SBCH. Unfortunately, the problem to partition a class set of different numbers of samples into two disjoint subsets such that their numbers of samples are as close as possible is NP-complete (two-partition problem)\cite{4}. Therefore, we propose a heuristic way.
+
+\subsection{Evaluation of class set pairs}
+Consider a completely undirected graph $G=(V,E)$ where $V=\{c_i\}$ is a set of nodes corresponding to classes $c_i$ and $E=\{e_{ij}\}$ is a set of edges $e_{ij}$ with weight $w_{ij}$ defined by
+
+\begin{equation}
+w(c_i, c_j) = \lambda s(c_i, c_j) + (1-\lambda) b(c_i, c_j),
+\end{equation}
+\noindent
+where $s(c_i,c_j)\ (0 \leq s \leq 1)$ is the degree of separability between classes $c_i$ and $c_j$ and  $b(c_i,c_j)\ (0 \leq b \leq 1)$ is the degree of sample size balance between them. We conduct a Max-Min cut\cite{5} in the graph $G$. Concretely, with a parameter $\lambda\ (0\leq \lambda \leq 1)$, we find a partition $(V_1^*,V_2^*)$ of $V$ satisfying
+\begin{equation}
+(V_1^*,V_2^*) = \argmax_{(V_1,V_2)}\rm \min_{c_1 \in V_1 ,c_2 \in V_2}\it {w(c_i, c_j)},\ 0\leq \lambda \leq 1. \displaystyle
+\end{equation}
+For the degree $s(c_1,c_2)$ of separability, we use the value of the classification accuracy estimated by the leave-one-out (LOO) technique with 1-nearest neighbor (1-NN) classifier applied to $c_1$ and $c_2$. For the degree $b(c_1,c_2)$ of sample balance, we use a weighted entropy:
+
+%For the degree of sample balance $b(c_i, c_j)$, it seems natural to take the entropy $H(n_i/n_i+n_j, n_j/n_i+n_j)$ where $n_i(n_j)$ is the number of samples of class $c_i(c_j)$. However, such ratios are not taken into consideration the absolute sizes $n_i$ and $n_j$, so that the degree of imbalance can be accumulated. Therefore, 
+
+
+%, e.g., for $n_1=100,\ n_2=90,\ n_3=2,\ n_4=1,\ n_1$ and $n_2$ are merged into $n_{12}=190$ rather than $n_3$ and $n_4$ into $n_{34}=3$. Therefore, we calculate $b(c_i, c_j)$ as
+
+\begin{eqnarray}
+b(c_1,c_2) = \frac{n_1 + n_2}{N} H(\frac{n_1}{n_1 + n_2},\frac{n_2}{n_1 + n_2}), \displaystyle
+\end{eqnarray}
+\noindent
+where $N$ is the total number of samples ($N \geq n_1 + n_2$). This value becomes smaller when classes $c_1$ and $c_2$ have smaller numbers of samples and are more imbalanced.
+\begin{comment}
+\subsection{Max-Min algorithm}
+Our max-min criterion for 2-partition $(U,W)$ of a node set $V$:
+$$\max_{U,W}\min_{i\in U,j\in W} w_{ij}$$
+is easily solvable by the procedure
+
+{\bf Max-Min algorithm}
+\begin{enumerate}
+\item Find the edge $e_{ij}$ with the smallest weight $w_{ij}$
+\item Merge two nodes $i,j$ into a new node $k$.
+\item Generate the edges $e_{k\ell}$ between node $k$ and any node $\ell$ with weight $w_{k\ell}=\min \{w_{i\ell},w_{j\ell}\}$.
+\item Repeat Steps 1-3 until only two nodes remain.
+\end{enumerate}
+
+The algorithm is shown in Fig.2. This algorithm is denoted by BCH. The correctness is shown by
+\begin{theorem}
+ {\bf Max-Min algorithm} gives the optimal solution.
+\end{theorem}
+\begin{proof}
+Assume that  {\bf Max-Min algorithm} gives a partition $(U,W)$ with the edge with 
+the smallest weight $w$ between $U$ and $W$. Furthermore,  suppose a different from $(U,W)$ 
+but optimal partition  $(U',W')$ with the edge with the smallest weight $w'$ between $U'$ and $W'$ such that $w'>w$.
+Since these partitions are different, there must be an edge $e''$ such that it
+is between $U'$ and $W'$, but is inside either $U$ or $W$. From the optimality,
+the weight $w''$ of $e''$ is greater or equal to $w'$. However, $e''$ is in $U$ or $W$ which means
+$w''> w$. This is contradiction to the edge selection strategy of the algorithm.
+\end{proof}
+
+
+\begin{proof}
+We prove that optimization of max-min cut can be achieved by sequential merger of a pair of nodes with the smallest weight of a graph with a mathematical induction.
+Let a class set at a node is $V = \{c_i\}_{i=1}^{k}$ $(k \geq 2)$.\\ %and distinct two class subsets are $V_1,V_2$.\\
+Step 1. For $k=2$ i.e. $V = \{c_1,c_2\}$, the optimal max-min cut is $V_1^*=\{c_1\},V_2^*=\{c_2\}$.\\
+Step 2. Let us assume that for $k=l (l \geq 2)$, the optimal max-min cut is obtained.\\
+For $k=l+1$, we find the pair $\displaystyle (u^*,v^*)=\arg\min_{u,v\in V} \left(\lambda\cdot s(u,v)+ (1-\lambda) \cdot b(u,v)\right)$ first and merge them into one which results in $l$ nodes. Subsequently, we update weights of the new node to the smaller one. The edge $e_{uv}$ has the smallest weight so that it cannot be cut to obtain the optimal min-max cut and since the weights of new node are updated to smaller one, deleted weights do not affect the optimal cut. Therefore, from the assumption, the optimal max-min cut is obtained.\\
+From 1 and 2, optimization of max-min cut can be achieved by sequential merger of a pair of nodes with the smallest weight of a graph.\qed
+\end{proof}
+The algorithm is shown in Fig.2. This algorithm is denoted by BCH.
+For the degree $b(\omega_i, \omega_j)$ of sample balance, it seems natural to take the entropy $H(n_i/n_i+n_j, n_j/n_i+n_j)$ where $n_i(n_j)$ is the number of samples of class $\omega_i(\omega_j)$. However, such ratios are not taken into consideration the absolute sizes $n_i$ and $n_j$, so that the degree of imbalance can be accumulated, e.g., for $n_1=100,\ n_2=90,\ n_3=2,\ n_4=1,\ n_1$ and $n_2$ are merged into $n_{12}=190$ rather than $n_3$ and $n_4$ into $n_{34}=3$. Therefore, we calculate $b(\omega_i, \omega_j)$ as
+\end{comment}
+
+
+ 
+%Here, we extract one class pair $(\omega_i, \omega_j)$ with the smallest weight $w_{ij}$ from a set of $C$ classes $\Omega$ and merge them. As a result, $C-1$ class sets is obtained and repeating this operation results in a class subsets pair $(\Omega_i^*,\Omega_j^*)$. By this procedure, class pairs with the smallest weight are merged in order. The algorithm of constructing a class hierarchy is shown in Fig 2.
+\begin{comment}
+\subsection{The definition of separability $s(\omega_i,\omega_j)$}
+We want to find a partition that makes the separability of $(\Omega_i^*,\Omega_j^*)$ as large as possible. We use the classification accuracy estimated by the leave-one-out (LOO) technique with 1-nearest neighbor (1NN) classifier as the degree of separability of the class pair $(\omega_i, \omega_j)$. As a result, the class pair with the lowest degree of separability is merged first.
+
+\subsection{The definition of sample balance $b(\omega_i$, $\omega_j)$}
+We want to find a partition such that the numbers of samples contained in ($\Omega_i^*$, $\Omega_j^*$) is as close as possible. Given $C$ class sets $\Omega = \{\omega_1,\omega_2,...,\omega_C\}$, where the numbers of samples of each class is $n_1 \geq n_2 \geq,...,\geq n_k$ and the total number of samples is $n = \sum_{i=1}^{k}n_i$, we define $p_i = \frac{n_i}{n}, (i = 1,2,...,k)$. Let the index sets of the set $\Omega_i^*$,$\Omega_j^*$ is $I_{\Omega_i^*}$,$I_{\Omega_j^*}$ and $n_{\Omega_i^*} = \sum_{i \in I_i}n_i$,$n_{\Omega_j^*} = \sum_{i \in I_j}n_i$. Entropy of the division ($\Omega_i^*$,$\Omega_j^*$) is 
+
+\begin{equation}
+H(\Omega_i^*,\Omega_j^*) = H(n_{\Omega_i^*}/n,n_{\Omega_j^*}/n)
+\end{equation}
+
+We want to make this entropy as large as possible. Let the integrated class of the class pair $(\omega_a,\omega_b)$ as $\omega_{ab}$. We chose the class pair so that the following entropy after integrated the pair $(\omega_a,\omega_b)$ is as large as possible.
+
+\begin{equation}
+H(\Omega \setminus \{\omega_a,\omega_b\} \cup \{\omega_{ab}\}) 
+\end{equation}
+
+Here, the entropy of $\Omega$ is $H(\Omega) = - \sum_{i=1}^{k}p_i\log_2{p_i}$ and the entropy after merger of the class  pair ($\omega_a$,$\omega_b$) is 
+
+\begin{eqnarray}
+H_{ab}&=& H(\Omega \setminus \{\omega_a,\omega_b\} \cup \{\omega_{ab}\}) \nonumber \\
+      &=& - \sum_{i=1}^{k}p_i\log_2{p_i} - (-p_a\log_2{p_a} -p_b\log_2{p_b}) - (p_a + p_b)\log_2{(p_a + p_b)}
+\end{eqnarray}
+
+Therefore, the difference of entropy between before and after merger is as follows.
+
+\begin{eqnarray}
+H_{ab} - H(\Omega) &=& p_a\log_2{p_a} + p_b\log_2{p_b} - (p_a + p_b)\log_2{(p_a + p_b)}  \nonumber \\
+&=& -(p_a + p_b)(-\frac{p_a}{p_a + p_b}\log_2\frac{p_a}{p_a + p_b} - \frac{p_b}{p_a + p_b}\log_2\frac{p_b}{p_a + p_b}) \nonumber \\
+&=& -(p_a + p_b)H(\frac{p_a}{p_a + p_b},\frac{p_b}{p_a + p_b})\\ \nonumber
+&=& -(p_a + p_b)H(\frac{n_a}{n_a + n_b},\frac{n_b}{n_a + n_b}) \leq 0
+\end{eqnarray}
+
+When this difference is maximized, the entropy after merger $H_{ab}$ is maximized. In other words, we have to chose the pair which $(p_a + p_b)H(\frac{n_a}{n_a + n_b},\frac{n_b}{n_a + n_b})$ is minimized. Therefore, we define the degree of the sample balance of the class pair ($\omega_i$, $\omega_j$) as follows
+
+\begin{eqnarray}
+b(\omega_i,\omega_j) = (p_i + p_j)H(\frac{n_i}{n_i + n_j},\frac{n_j}{n_i + n_j})
+\end{eqnarray}
+
+As a result, the class pair that have a small numbers of samples and is imbalanced is merged first. 
+\end{comment}
+
+%\subsection{Complexity}
+%The computational complexity of algorithm BCH is $O(C^3 N^2 d)$. It is most consumed in Partition part. For $N$ samples of $d$-dimentioned vectors belonging to one of $C$ classes, calculating $s(u,v)$ for a single pair of class subsets by LOO with 1-NN takes $O(N^2 d)$ and thus for every pair, Partition needs $O(C^2 N^2 d)$. In Division part, Partition is repeated $O(C)$ times recursively. As a result, the entire complexity becomes $O(C^3 N^2 d)$. 
+
+
+%$O(C^2 N^2 d)$ which depends on the part that find the minimum weights of edges. The complexity of Procedure Division(T) is $O(C^3 N^2 d)$ since it is repeated until each children consists of one class. Therefore, the complexity of overall algorithm is $\mathcal{O}(C^3 N^2 d)$ which depends on the Division part.
+
+\begin{comment}
+The algorithm for calculating the weight of a class pair is shown in Algorithm 1. This amount of calculation is $ \mathcal{O}(k^2N^2d)$, where N is the total number of samples and d is the dimension. The algorithm for dividing each node of the tree is shown in Algorithm 2. The division of the class set is repeated according to (4), and this process is performed until the each leaf node become one class.
+
+The computational complexity of this algorithm depends on the part of that calculates the weight in 2 $\mathcal{O}(k^2N^2d)$. Also, Algorithm 3 is the algorithm that repeats the division at each node and builds a class decision tree in a the top down way. The computational complexity of the part that constructs the class decision tree is $\mathcal{O}(k^3N^2d)$. Also, the total amount of calculation of learning and calculating the  classification accuracy depends on the part that constructs the class decision tree ($\mathcal{O}(k^3N^2d$)).\\
+
+\subsubsection{Sample Heading (Third Level)} Only two levels of
+headings should be numbered. Lower level headings remain unnumbered;
+they are formatted as run-in headings.
+
+\paragraph{Sample Heading (Fourth Level)}
+The contribution should contain no more than four levels of
+headings. Table~\ref{tab1} gives a summary of all heading levels.
+
+\begin{table}
+\caption{Table captions should be placed above the
+tables.}\label{tab1}
+\begin{tabular}{|l|l|l|}
+\hline
+Heading level &  Example & Font size and style\\
+\hline
+Title (centered) &  {\Large\bfseries Lecture Notes} & 14 point, bold\\
+1st-level heading &  {\large\bfseries 1 Introduction} & 12 point, bold\\
+2nd-level heading & {\bfseries 2.1 Printing Area} & 10 point, bold\\
+3rd-level heading & {\bfseries Run-in Heading in Bold.} Text follows & 10 point, bold\\
+4th-level heading & {\itshape Lowest Level Heading.} Text follows & 10 point, italic\\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent Displayed equations are centered and set on a separate
+line.
+\begin{equation}
+x + y = z
+\end{equation}
+Please try to avoid rasterized images for line-art diagrams and
+schemas. Whenever possible, use vector graphics instead (see
+Fig.~\ref{fig1}).
+
+\begin{figure}
+\includegraphics[width=\textwidth]{fig1.eps}
+\caption{A figure caption is always placed below the illustration.
+Please note that short captions are centered, while long ones are
+justified by the macro package automatically.} \label{fig1}
+\end{figure}
+
+\begin{theorem}
+This is a sample theorem. The run-in heading is set in bold, while
+the following text appears in italics. Definitions, lemmas,
+propositions, and corollaries are styled the same way.
+\end{theorem}
+%
+% the environments 'definition', 'lemma', 'proposition', 'corollary',
+% 'remark', and 'example' are defined in the LLNCS documentclass as well.
+%
+\begin{proof}
+Proofs, examples, and remarks have the initial word in italics,
+while the following text appears in normal font.
+\end{proof}
+
+
+%N;Number of samples in a dataset, C;Number of classes in a dataset
+\begin{algorithm}[tbph]                   
+\caption{Calc\_W(Culculation of edge weights)}         
+\label{alg1}                          
+ %\newcommand{\argmax}{\mathop{\rm arg~max}\limits}
+ \begin{algorithmic}
+ \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+ \renewcommand{\algorithmicensure}{\textbf{Output:}}
+ \REQUIRE $X=\{(\bm x_i, y_i)|\bm x_i \in \bm R^d, y_i \in \{1,2,...,C\}\}_{i=1}^{N},\Omega$; Class indexes set of a node in a class hierarchy, $\lambda$; parameter
+ \ENSURE  $W = \{w_{ij}|i,j \in \Omega\} $ %\{1,2,...,k\}\}$
+ %\\ \textit{Initialisation} k:\ number\ of\ nodes\ 
+ \STATE 1: Delete samples not included in $\Omega$
+ \STATE 2: $\bf For\ \it i\ in\ \Omega \bf\ do$ 
+ \STATE 2.1: $\bf For\ \it j\ in\ \Omega \bf\ do$ 
+ \STATE 2.1.1: $s_{ij} \leftarrow$ the degree of separability of the class pair$(\omega_i, \omega_j)$(by Eq.(5))
+ \STATE 2.1.2: $b_{ij} \leftarrow$ the degree of sample balance of the class pair$(\omega_i, \omega_j)$(by Eq.(12))
+ \STATE 2.1.3: $w_{ij} \leftarrow \lambda\ s_{ij} + (1 - \lambda)\ b_{ij}$ 
+ \STATE\ \ \ \ \ \ $\bf end\ for$
+ \STATE \ \ \ $\bf end\ for$
+ \end{algorithmic} 
+ \end{algorithm}
+ 
+
+\begin{algorithm}[tbph]                   
+\caption{Divide\_Node(Division of each node of a class hierarchy)}         
+\label{alg1}                          
+ %\newcommand{\argmax}{\mathop{\rm arg~max}\limits}
+ \begin{algorithmic}
+ \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+ \renewcommand{\algorithmicensure}{\textbf{Output:}}
+ \REQUIRE  $X=\{(\bm x_i, y_i)|\bm x_i \in \bm R^d, y_i \in \{1,2,...,C\}\}_{i=1}^{N},\Omega$; Class indexes set of a node in a class hierarchy, $\lambda$; parameter
+ \ENSURE  $(\Omega_i^*,\Omega_j^*)\ s.t.\ \Omega_i^* \cap \Omega_j^* = \phi,\  \Omega_i^* \cup \Omega_j^* = \Omega$
+ %\\ \textit{Initialisation} k:\ number\ of\ nodes\ 
+ \STATE 1: $W \leftarrow Calc\_W(X, \Omega)$
+ \STATE 2: Sort $W$ in the ascending order\\
+ \STATE 3: $\bf while\ \rm |\Omega| > 2 \bf\ do$
+ \STATE \ \ 3.1: Find\ $w_{ab}$ = min($w_{ij}$)%\ and\ $e_{ij}$  
+ \STATE \ \ 3.2: Marge\ nodes\ $\omega_a\ and\ \omega_b$\ and\ make\ new\ node\ $\omega_{ab} \leftarrow \{a\} \cup \{b\}$
+ \STATE \ \ 3.3: $\Omega \leftarrow \Omega \setminus \omega_{ab}$ 
+ \STATE \ \ 3.4: $\Omega \leftarrow \Omega \cup  \{\omega_{ab}\}$
+ \STATE \ \ 3.5: Update weights of the new node to the smaller one
+ \STATE \ \  $\bf end\ while$
+ \STATE 4: $\{\Omega_i^*,\Omega_j^*\} \leftarrow \Omega$
+ \end{algorithmic} 
+ \end{algorithm}
+
+ 
+\begin{algorithm}[tbph]                   
+\caption{Make\_Hierarchy(Construction of class hierarchy)}         
+\label{alg2}                          
+ %\newcommand{\argmax}{\mathop{\rm arg~max}\limits}
+ \begin{algorithmic}
+ \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+ \renewcommand{\algorithmicensure}{\textbf{Output:}}
+ \REQUIRE $X=\{(\bm x_i, y_i)|\bm x_i \in \bm R^d, y_i \in \{1,2,...,C\}\}_{i=1}^{N}, \Omega$; Class indexes set of the root node of a class hierarchy, $T=(V, E)$; A set pair consisting of Tree
+ \ENSURE  $T = (V,E)$
+ \STATE 1: $(\Omega_i^*,\Omega_j^*) \leftarrow Divide\_Node(X,\Omega)$
+ \STATE 2: $V\cup \{\Omega\}$
+ \STATE 3:  $E \cup \{\{\Omega,\Omega_i^*\}\}$
+ \STATE 4:  $E \cup \{\{\Omega,\Omega_j^*\}\}$
+ \STATE 5:Make\_Hierarchy$(X,\Omega_i^*)$ 
+ \STATE 6:Make\_Hierarchy$(X,\Omega_j^*)$
+ \end{algorithmic} 
+ \end{algorithm}
+\end{comment}
+ 
+
+
+\begin{comment}
+%-----------------------------------------------------------------algorithm-----------------------------------------------
+\begin{figure}[tbph]
+ \centering
+ \begin{tabular}[t]{ll}
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- main --------------------------
+ \begin{tabbing}
+{\bf Procedure   main} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^C$ :the original class set \\
+   {\bf Output:} $T$: a class hierarchy \\[2mm]
+$T.set \leftarrow V$;\quad (root node)\\
+$\mbox{Division}(T)$\\
+{return;}\\[2mm]
+ \end{tabbing}
+%--------------------------- main --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- weights --------------------------
+ \begin{tabbing}
+{\bf Functions } $s(u,v)$ and $b(u,v)$ \\[2mm]
+   {\bf Input:}  \=$u,v$ : class sets \\
+\>    $n$: the total number of samples at a node\\
+
+   {\bf Output:} $s(u,v)$: separability, $b(u,v)$: balance degree \\[2mm]
+$s(u,v) \leftarrow \mbox{ (LOO accuracy btw $u$ and $v$)}$;\\
+$b(u,v) \leftarrow {(|u|+|v|)\over n}H\left({|u|\over |u|+|v|},{|v| \over |u|+|v|}\right)$;\\
+{return} $s(u,v)$ and $b(u,v)$ ;\\[2mm]
+ \end{tabbing}
+%--------------------------- weights  --------------------------
+   \end{minipage}
+\\
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Division --------------------------
+ \begin{tabbing}
+{\bf Procedure   Division($T$)} \\[2mm]
+   {\bf Input:}  $T$ :a tree \\
+   {\bf Output:} $T$: an updated tree \\[2mm]
+$V\leftarrow T.set$;\\
+$(U,W)=\mbox{Partition}(V)$\\
+$T_1.set \leftarrow U$;\quad
+$T_2.set \leftarrow W$;\\
+$T.leftson \leftarrow T_1$;\quad
+$T.rightson \leftarrow T_2$;\\
+{\bf if }$|U|>1$\\
+\hspace*{5mm}\= $\mbox{Division}(T.leftson)$\\
+{\bf if }$|W|>1$\\
+\> $\mbox{Division}(T.rightson)$\\
+{return ;}
+ \end{tabbing}
+%--------------------------- Division --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Partition --------------------------
+ \begin{tabbing}
+{\bf Procedure   Partition($V$)} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^k$ :a class subset at a node\\
+     $\lambda(0\leq \lambda \leq 1)$: balance parameter\\
+   {\bf Output:} $U,W$: distinct two class subsets \\[2mm]
+{\bf if} $k= 2$ {\bf then } return $(U=\{c_1\},W=\{c_2\})$;\\
+%{\cal V}\leftarrow \left\{ \{c_i\} \mid i=1,2,\ldots,k\right\}$;\\
+{\bf while } $ |{V}|> 2$ {\bf do } \\
+\hspace*{5mm} \= $\displaystyle (u^*,v^*)=\arg\min_{u,v\in { V}} \left(\lambda\cdot s(u,v)+ (1-\lambda) \cdot b(u,v)\right);$\\
+\> $w = \{u^*\} \cup \{v^*\}$;\\
+\> ${ V}\leftarrow { V} \cup \{w\};$\\
+\> ${ V}\leftarrow { V} \setminus \{u^*,v^*\};$\\
+\> {\bf for } $t$ in ${ V} \setminus w$ {\bf do} \\
+\>\hspace*{5mm} \= $\left(\lambda\cdot s(w,t)+ (1-\lambda) \cdot b(w,t)\right) $\\ \> $ = min(\left(\lambda\cdot s(u^*,t)+ (1-\lambda) \cdot b(u^*,t)\right), \left(\lambda\cdot s(v^*,t)+ (1-\lambda) \cdot b(v^*,t)\right))$\\
+
+{return (two class subsets of $\cal V$);}
+ \end{tabbing}
+%--------------------------- Partition --------------------------
+   \end{minipage}
+\\
+ \end{tabular}
+ \caption{Algorithm Balanced Class Hierarchy (BCH) }
+ \label{fig:bcdt} 
+\end{figure}
+%----------------------------------------------------------alorithm1------------------------------------
+
+
+
+
+
+%---------------------------end algorithm2-------------------------------------------------------
+
+
+%--------------------------------------------------------------algorithm2-------------------------------------------------------------------------------------------------------------- 
+
+\begin{figure}[tbph]
+ \centering
+ \begin{tabular}[t]{ll}
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- main --------------------------
+ \begin{tabbing}
+{\bf Procedure   main} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^C$ :the original class set \\
+   {\bf Output:} $T$: a class hierarchy \\[2mm]
+$T.set \leftarrow V$;\quad (root node)\\
+$\mbox{Division}(T)$\\
+{return;}\\[2mm]
+ \end{tabbing}
+%--------------------------- main --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- weights --------------------------
+ \begin{tabbing}
+{\bf Functions } $s(u,v)$ and $b(u,v)$ \\[2mm]
+   {\bf Input:}  \=$u,v$ : disjoint class subsets ($n=|u|,m=|v|$) \\
+\>    $N$: the total number of samples\\
+
+   {\bf Output:} $s(u,v)$: separability, $b(u,v)$: balance degree \\[2mm]
+$s(u,v) \leftarrow \min_{c\in u, c'\in v } \mbox{ (LOO accuracy btw $c$ and $c'$)}$;\\
+$b(u,v) \leftarrow {(n+m)\over N}H\left({n\over n+m},{m \over n+m}\right)$;\\
+{return} $s(u,v)$ and $b(u,v)$ ;\\[2mm]
+ \end{tabbing}
+%--------------------------- weights  --------------------------
+   \end{minipage}
+\\
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Division --------------------------
+ \begin{tabbing}
+{\bf Procedure   Division($T$)} \\[2mm]
+   {\bf Input:}  $T$ :a tree \\
+   {\bf Output:} $T$: an updated tree \\[2mm]
+$V\leftarrow T.set$;\\
+$(U,W)=\mbox{Partition}(V)$\\
+$T_1.set \leftarrow U$;\quad
+$T_2.set \leftarrow W$;\\
+$T.leftson \leftarrow T_1$;\quad
+$T.rightson \leftarrow T_2$;\\
+{\bf if }$|U|>1$\\
+\hspace*{5mm}\= $\mbox{Division}(T.leftson)$\\
+{\bf if }$|W|>1$\\
+\> $\mbox{Division}(T.rightson)$\\
+{return ;}
+ \end{tabbing}
+%--------------------------- Division --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Partition --------------------------
+ \begin{tabbing}
+{\bf Procedure   Partition($V$)} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^k$ :a class subset at a node\\
+     $\lambda(0\leq \lambda \leq 1)$: balance parameter\\
+   {\bf Output:} $U,W$: distinct two class subsets \\[2mm]
+{\bf if} $k=2$ {\bf then } return $(U=\{c_1\},W=\{c_2\})$;\\
+${\cal V}\leftarrow \left\{ \{c_i\} \mid i=1,2,\ldots,k\right\}$;\\
+{\bf while } $ |{\cal V}|> 2$ {\bf do } \\
+\hspace*{5mm} \= $\displaystyle (u^*,v^*)=\arg\min_{u,v\in {\cal V}} \left(\lambda\cdot s(u,v)+ (1-\lambda) \cdot b(u,v)\right);$\\
+\> $w = u^*\cup v^*$;\\
+\> ${\cal V}\leftarrow {\cal V} \cup \{w\};$\\
+\> ${\cal V}\leftarrow {\cal V} \setminus \{u^*,v^*\};$\\
+{return (two class subsets of $\cal V$);}
+ \end{tabbing}
+%--------------------------- Partition --------------------------
+   \end{minipage}
+\\
+ \end{tabular}
+ \caption{Algorithm Balanced Class Hierarchy (BCH) }
+ \label{fig:bcdt} 
+\end{figure}
+
+%---------------------------end algorithm2-------------------------------------------------------
+
+
+%-----------------------------------algorithm3-----------------------------------------------------------------
+\begin{figure}[tbph]
+ \centering
+ \begin{tabular}[t]{ll}
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- main --------------------------
+ \begin{tabbing}
+{\bf Procedure   main} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^C$ :the original class set \\
+   {\bf Output:} $T$: a class hierarchy \\[2mm]
+$T.set \leftarrow V$;\quad (root node)\\
+$\mbox{Division}(T)$\\
+{return;}\\[2mm]
+ \end{tabbing}
+%--------------------------- main --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- weights --------------------------
+ \begin{tabbing}
+{\bf Functions } $w(u,v)$ \\[2mm]
+   {\bf Input:}  \=$u,v$ : disjoint class subsets \\
+\>    $n$: the total number of samples at a node\\
+\>    $\lambda(0\leq \lambda \leq 1)$: balance parameter\\
+   {\bf Output:} $w(u,v)$: a weight between class subsets\\[2mm]
+%$s(c,c') \leftarrow \mbox{ (LOO accuracy btw $c$ and $c'$)}$;\\
+%$b(c,c') \leftarrow {(|c|+|c'|)\over n}H\left({|c|\over |c|+|c'|},{|c'| \over |c|+|c'|}\right)$;\\
+$w(u,v) \leftarrow \min_{c\in u, c'\in v } (\lambda s(c,c') + (1 - \lambda) b(c,c')) $,\\
+where $s(c,c') = \mbox{ (LOO accuracy btw $c$ and $c'$)}$\\ and $b(c,c') = {(|c|+|c'|)\over n}H\left({|c|\over |c|+|c'|},{|c'| \over |c|+|c'|}\right)$;\\
+{return} $w(u,v)$ ;\\[2mm]
+ \end{tabbing}
+%--------------------------- weights  --------------------------
+   \end{minipage}
+\\
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Division --------------------------
+ \begin{tabbing}
+{\bf Procedure   Division($T$)} \\[2mm]
+   {\bf Input:}  $T$ :a tree \\
+   {\bf Output:} $T$: an updated tree \\[2mm]
+$V\leftarrow T.set$;\\
+$(U,W)=\mbox{Partition}(V)$\\
+$T_1.set \leftarrow U$;\quad
+$T_2.set \leftarrow W$;\\
+$T.leftson \leftarrow T_1$;\quad
+$T.rightson \leftarrow T_2$;\\
+{\bf if }$|U|>1$\\
+\hspace*{5mm}\= $\mbox{Division}(T.leftson)$\\
+{\bf if }$|W|>1$\\
+\> $\mbox{Division}(T.rightson)$\\
+{return ;}
+ \end{tabbing}
+%--------------------------- Division --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Partition --------------------------
+ \begin{tabbing}
+{\bf Procedure   Partition($V$)} \\[2mm]
+   {\bf Input:}  $V=\{c_i\}_{i=1}^k$ :a class subset at a node\\
+   {\bf Output:} $U,W$: distinct two class subsets \\[2mm]
+{\bf if} $k=2$ {\bf then } return $(U=\{c_1\},W=\{c_2\})$;\\
+${\cal V}\leftarrow \left\{ \{c_i\} \mid i=1,2,\ldots,k\right\}$;\\
+{\bf while } $ |{\cal V}|> 2$ {\bf do } \\
+\hspace*{5mm} \= $\displaystyle (u^*,v^*)=\arg\min_{u,v\in {\cal V}} w(u,v);$\\
+\> $w = u^*\cup v^*$;\\
+\> ${\cal V}\leftarrow {\cal V} \cup \{w\};$\\
+\> ${\cal V}\leftarrow {\cal V} \setminus \{u^*,v^*\};$\\
+{return (two class subsets of $\cal V$);}
+ \end{tabbing}
+%--------------------------- Partition --------------------------
+   \end{minipage}
+\\
+ \end{tabular}
+ \caption{Algorithm Balanced Class Hierarchy (BCH) }
+ \label{fig:bcdt} 
+\end{figure}
+
+%---------------------------end algorithm3-------------------------------------------------------
+\end{comment}
+
+\subsection{Max-Min algorithm}
+
+Our max-min criterion for 2-partition $(U,W)$ of a node set $V$:
+$$\max_{U,W}\min_{i\in U,j\in W} w_{ij}$$
+is easily solvable by the minimum-cost spanning tree.
+
+\begin{theorem}
+ The solution of {\bf Max-Min problem} is given by cutting the edge of the maximum weight
+in the minimum-cost spanning tree.
+\end{theorem}
+\begin{proof}
+As well known, the minimum-cost spanning tree
+has the MST property, that is, for any 2-partition $(U,W)$ of the node set $V$, if $e$ is the edge between 
+$U$ and $W$ having the smallest weight, then $e$ is necessarily included in the minimum-cost spanning tree $M$.
+Therefore, the 2-partition $(U,W)$ obtained by cutting the largest weight $e'$ of $M$ gives
+the solution of the max-min criterion.
+\end{proof}
+
+For construction of the minimum-cost spanning tree, we could use Prim's algorithm of $O(|V|^2)$
+time or Kraskal's algorithm of $O(|E|\log |E|)$ time. For a complete graph, therefore, Prim's algorithm
+has an advantage in time.\\
+
+{\bf Max-Min algorithm using a minimum-cost spanning tree}
+\begin{enumerate}
+\item Construct the minimum-cost spanning tree $M$ of graph $G=(V,E)$
+\item Find the edge $e\in M$ with the  largest weight.
+\item Separate $M$ into $M_1$ and $M_2$ by cutting $e$.
+\item Gathering all nodes connected to $M_1$ $(M_2)$, make $U$ $(W)$.
+\end{enumerate}
+
+Repeating {\bf Max-Min algorithm} starting from a whole set $V$ of classes, we can construct a
+class decision tree. The algorithm is shown in Fig.~\ref{fig:bcdt2}.
+First we construct a complete graph $G=(V,E)$ and give weights on all the edges
+according to (1). Then, we construct a minimum-cost spanning tree $M$ over $G$. Furthermore,
+we sort the $|V|-1$ edges of $M$ in decreasing order of the weights.
+Last, by cutting the largest-weight edge of $M$, we divide $M$ into $M_1$ and $M_2$,
+smaller minimum-cost spanning trees. Repeating this division, we construct a decision class tree. 
+Here, two class subsets $U\ and\ W$ of $V$ is given such that $U$ is of nodes connected to $M_1$ and
+$W$ is of nodes connected to $M_2$.
+
+Lorena and Carvalho~\cite{15} have shown a similar algorithm in a bottom-up way,
+that is, building a class decision tree by repeating a merging process of two sets of classes according to Kruskal's algorithm. In fact, our tree is the same as theirs as a result, if we ignore the contents of the weights.
+However, our construction is made in a top-down way, repeating divisions from a whole set of classes.
+This contributes the reduction of time complexity because Prim's algorithm of $O(n^2) $ for constructing
+a minimum-cost spanning tree is superior to Kruskal's algorithm of
+$O(n^2\log n^2)$ for a complete graph of size $n$. Although we need more cost to sort $n-1$ edges 
+and $n-1$ divisions, they are carried out in $O(n\log n)$ and $O(n)$.
+The more important difference from Lorena and Carvalho's approach is that they use Kruscal's algorithm as a clustering method without a clear optimization criterion, while we developed our algorithm to solve {\bf Max-Min problem}
+with the equivalence proof with a minimum-cost spanning tree. Note that Prim's algorithm does not give a correct solution when it is used in a bottom-up way.
+
+
+\begin{figure}[tbph]
+ \centering
+ \begin{tabular}[t]{ll}
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- main --------------------------
+ \begin{tabbing}
+{\bf Procedure   main} \\[2mm]
+   {\bf Input:}  \=$V=\{c_i\}_{i=1}^C$ :a  class set \\
+\> $S=\{(x_i,y_i)\}_{i=1}^n$ :a sample set \\
+\>$\lambda$: a balance parameter $(0\leq \lambda \leq 1)$\\
+   {\bf Output:} $T$: a class decision tree \\[2mm]
+
+$W=$ {\bf Weighting}$(V,\lambda,S)$;\\
+Make a complete graph $G=(V,E,W)$;\\
+// Construct a minimum-cost spanning tree\\
+$M=${\bf Prim}$(G)$;\\
+$F=$ (the set of edges $(u,v)$ of $M$);\\
+// Sort $F$ in decreasing order of weights\\
+$F= {\bf Sort}(F)$;\\
+$T.set \leftarrow V$;\quad // root node\\
+$\mbox{\bf Division}(T,V,F,M)$;\\
+{return;}\\[2mm]
+ \end{tabbing}
+%--------------------------- main --------------------------
+   \end{minipage}
+&
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- weights --------------------------
+ \begin{tabbing}
+{\bf Procedure Weighting } $(V,\lambda, S)$ \\[2mm]
+   {\bf Input:}  \=$V=\{c\}$ : a vertex set\\ 
+   \> $\lambda$: a balance parameter $(0\leq \lambda \leq 1)$\\
+   \> $S=\{(x_i,y_i)\}_{i=1}^n$ :a sample set \\
+   {\bf Output:} $\{w(c,c')\}$: edge weights \\[2mm]
+   $N \leftarrow |S|;$\\
+   {\bf for} every pair $(c,c')\in V\times V (c\neq c')$ {\bf do}\\
+\quad \=$s(c,c') \leftarrow \mbox{ (LOO accuracy b $c$ and $c'$)}$;\\
+\> $ n \leftarrow $(the number of samples of $c$);\\
+\> $ m \leftarrow $(the number of samples of $c'$);\\
+\> $b(c,c') \leftarrow {(n+m)\over N}H\left({n\over n+m},{m \over n+m}\right)$;\\
+\> $w(c,c') \leftarrow$ $\lambda\cdot s(u,v)+ (1-\lambda) \cdot b(u,v);$\\
+{return} $\{w(c,c')\}$ ;\\[2mm]
+ \end{tabbing}
+ 
+%--------------------------- weights  --------------------------
+   \end{minipage}
+\\
+   \begin{minipage}[t]{0.47\linewidth}
+%--------------------------- Division --------------------------
+ \begin{tabbing}
+{\bf Procedure   Division($T,V,F,M$)} \\[2mm]
+   {\bf Input:}  \= $T$: a tree\quad $V$: a vertex set\\
+\> $F$: an edge set\quad $M$: a spanning tree\\
+   {\bf Output:} $T$: an updated tree \\[2mm]
+$(u^*,v^*)=\arg {\displaystyle \max_{(u,v)\in M} w(u,v)}$;\\%(V\times V)\cap F} w(u,v)}$;\\
+%// Cut $M$ by $(u^*,v^*)$\\
+$F \leftarrow F \setminus \{(u^*,v^*)\};$\\
+$M_1, M_2 \leftarrow M \setminus \{(u^*,v^*)\};$\\
+$U \leftarrow \{u\in V\mid u \in\ M_1\}$;\\
+$W \leftarrow \{m\in V\mid m \in\ M_2\}$;\\
+%$M_1.edge \leftarrow \{(u,v)\in F\mid u\ and\ v\ \mbox{in}\ U\}$;\\
+%$M_2.edge \leftarrow \{(u,v)\in F\mid u\ and\ v\ \mbox{in}\ W\}$;\\
+$T_1.set \leftarrow U$;\\
+$T_2.set \leftarrow W$;\\
+$T.leftson \leftarrow T_1$;\\
+$T.rightson \leftarrow T_2$;\\
+{\bf if }$|U|>1$\\
+\hspace*{5mm}\= $\mbox{\bf Division}(T.leftson,U,F,M_1)$;\\
+{\bf if }$|W| >1$\\
+\> $\mbox{\bf Division}(T.rightson,W,F,M_2)$;\\
+{return ;}
+ \end{tabbing}
+
+%--------------------------- Division --------------------------
+   \end{minipage}
+&
+\\
+ \end{tabular}
+ \caption{Algorithm SBCH}
+ \label{fig:bcdt2} 
+\end{figure}
+
+%\subsection{Complexity}
+%The computational complexity of algorithm BCH is $O(C^3 N^2 d)$. It is most consumed in Partition part. For $N$ samples of $d$-dimentioned vectors belonging to one of $C$ classes, calculating $s(u,v)$ for a single pair of class subsets by LOO with 1-NN takes $O(N^2 d)$ and thus for every pair, Partition needs $O(C^2 N^2 d)$. In Division part, Partition is repeated $O(C)$ times recursively. As a result, the entire complexity becomes $O(C^3 N^2 d)$. 
+    \begin{table}[tbph]
+     \caption{Datasets. Here, \#C: the number of classes, \#F: the number of features and \#S: the distribution of sample numbers. $Imbalance Ratio$ is the average ratio of $n_{-}/n_{+}$ where $n_{+}$ is the number of samples in a class and $n_{-}$ is the number of samples in the other classes.}
+     \label{table:dataset}
+      \centering
+      \begin{tabular}{cccclc}
+       \hline 
+    & Name & \#C & \#F & \#S &Imbalance Ratio\\
+       \hline 
+        &glass& 6 & 9 & 76,70,29,17,13,9  & 11.0\\
+        &yeast  & 10 & 8 & 463,429,244,163,51,44,37,30,20,5 & 55.0\\
+        &birds  & 60 & 260 & 294,30,17,16,15,15,11,10,9,9,7,6,6,6,5,4,...,4,3,...,3,2,...,2 & 215.0\\
+        \hline      
+     \end{tabular}
+    \end{table}   
+    
+\section{Experiments}
+
+We used two imbalanced datasets \tt glass \rm and \tt yeast \rm taken from UCI Machine Learning Repository\cite{7} and one multi-label imbalanced dataset \tt birds \rm taken from A Java Library for Multi-Label Learning (Mulan)\cite{10}. This multi-label dataset (\tt birds) \rm was translated into a single-label dataset by regarding a distinct subset of labels as a single meta-class. Each dataset is standardized to mean zero and variance one in each feature. The statistics are shown in Table 1. We adopted Support Vector Machine (with an RBF kernel) as a classifier in each node of the constructed tree. Other hyper-parameters of SVM were set to the default values given by the python library scikit-learn\cite{11}. We examined several values of the balance parameter $\lambda$ in SBCH from $0$ (sample balance only) to $1$ (separability only)\cite{5} in steps of $0.1$. We used three metrics of classification performance calculated by LOO: the $balanced\ accuracy$ (the average of accuracies of individual classes) and the accuracy of the latter half of all classes (Tail-1/2) and the latter quarter of them (Tail-1/4). As a baseline classifier, we adopted SVM in a standard one-versus-one strategy. This way of classification is denoted as Flat. In the proposed class hierarchy, SVM is used in common to all nodes but is trained differently according to the samples of left and right children. For reducing the training time, the class hierarchy is constructed only once from all the training samples and fixed for training with different sets of data in LOO.
+
+\subsection{Results} 
+The constructed class hierarchies by CDT\cite{5} and by SBCH on \tt glass\rm, \tt yeast \rm and \tt birds \rm are shown in Figs. 3 and 4. First, we notice that the class hierarchies by SBCH are extremely one-sided (imbalance in tree form) but are well balanced in sample number at each node, compared with the trees by CDT (see the values of the entropy in nodes). This imbalance as a binary tree is often natural in  long-tailed datasets because the number of samples decreases exponentially in many of such datasets. Suppose that $i$th class $c_i$ has $k \cdot 2^{-i}$ samples for a constant $k$. In such a dataset, the largest class is left out first at the root node (because $2^{-1} > \sum_{i \geq 2} 2^{-i}$), and the second largest class follows to achieve the best balance at each node (Fig. 3 (b)(d) and Fig. 4 (e)(f)). As a result, tail classes are located in a bottom part of the tree, resolving the imbalanced problem among tail classes. Note that in \tt birds\rm, only the first class has an extremely large number of samples, so that once class $c_1$ is left out, the imbalance decreases largely for remaining classes. This is the reason why the tree of SBCH ($\lambda=0.7$) is close to CDT. On the contrary, the training accuracy of SBCH decreases in the upper part of the trees compared with CDT (see the accuracy in each node). In Table 2, SBCH gains the best scores in the balanced accuracy and Tail-1/4, but the second best score in Tail-1/2 on {\tt birds}. \rm From the values of Tail-1/4, it is clear that the proposed SBCH is the most effective for tail classes, but not so effective for head to body classes.
+
+
+%Entropies of a partition of each node are higher and almost all of the entropies are close to 1 in BCH which suggest BCH is much more balanced than CH in both datasets. In BCH, Classes with a large numbers of samples are eliminated first. As a result, minority classes are classified with high classification accuracy at the lower hierarchies in BCH.
+%-----------------------------------------------tree-----------------------------------------------------------------------
+\begin{figure}[tbph]
+    \begin{tabular}[tbph]{ccc}
+    \includegraphics[scale=0.30]{fig3.png}
+&
+    \includegraphics[scale=0.30]{fig2.png}
+
+\\
+(a) CDT on \tt glass  &
+(b) SBCH on \tt glass ($\lambda=0.4$) \\
+    \includegraphics[scale=0.30]{fig5.png}
+&
+    \includegraphics[scale=0.30]{fig4.png}
+
+\\
+(c) CDT on \tt yeast  &
+(d) SBCH on \tt yeast ($\lambda=0.0$)  \\
+%    \includegraphics[scale=0.33]{glass1NN0.png}
+%&
+%    \includegraphics[scale=0.33]{glass1NN1.png}
+
+%\\
+%(a) 図5 &
+%(b) 図6 \\
+\end{tabular} \caption{CDT\cite{5} and proposed SBCH ($\lambda=0.4$ on \tt glass \rm and $\lambda=0.0$ on \tt yeast). \rm  In each node, the class subsets, the LOO accuracy by 1-NN and the entropy of sample numbers of two children are given in the order. The class IDs are re-assigned in the sample size order.} \label{fig:tab}
+\end{figure}
+
+%---------------------------------------------------tree-------------------------------------------------------------------------------------------------
+\begin{figure}[tbph]
+    \begin{tabular}[tbph]{ccc}
+    \includegraphics[scale=0.35]{fig6.png}
+&
+    \includegraphics[scale=0.40]{fig7.png}
+
+\\
+(a) Top part of CDT  &
+(b) Bottom part of CDT\\
+    \includegraphics[scale=0.35]{fig8.png}
+&
+    \includegraphics[scale=0.40]{fig9.png}
+
+\\
+(c) Top part of SBCH ($\lambda=0.7$)  &
+(d) Bottom part of SBCH ($\lambda=0.7$)\\
+
+\\
+    %\includegraphics[scale=0.35]{fig10.png}
+%&
+    %\includegraphics[scale=0.36]{fig11.png}
+\\
+    %(e) Top part of SBCH ($\lambda=0.0$)  &
+    %(f) Bottom part of SBCH ($\lambda=0.0$)\\
+
+\\
+\end{tabular} \caption{The top and bottom parts of CDT\cite{5} and proposed SBCH ($\lambda=0.7$) on \tt birds. \rm In each node, the class subsets, the LOO accuracy by 1-NN and the entropy of sample numbers of two children are given in the order. The class IDs are re-assigned in the sample size order.} \label{fig:tab}
+\end{figure}
+%------------------------------------------------tree end---------------------------------------------------------------
+
+\begin{comment}
+
+
+ \begin{table}
+ \caption{Table captions should be placed above the
+ tables.}\label{tab1}
+ \begin{tabular}{|l|l|l|}
+ \hline
+ Heading level &  Example & Font size and style\\
+ \hline
+ Title (centered) &  {\Large\bfseries Lecture Notes} & 14 point, bold\\
+ 1st-level heading &  {\large\bfseries 1 Introduction} & 12 point, bold\\
+ 2nd-level heading & {\bfseries 2.1 Printing Area} & 10 point, bold\\
+ 3rd-level heading & {\bfseries Run-in Heading in Bold.} Text follows & 10 point, bold\\
+ 4th-level heading & {\itshape Lowest Level Heading.} Text follows & 10 point, italic\\
+ \hline
+ \end{tabular}
+ \end{table}
+\end{comment}
+
+    \begin{table}[tbp]
+     \caption{Comparison of three approaches of Flat, CDT\cite{5} and SBCH (proposed). In SBCH, the best value of $\lambda$ is chosen ($\lambda^* = 0.4$ for \tt glass\rm, $0.0$ for \tt yeast \rm and $0.7$ for \tt birds\rm).}
+     \label{}
+      \centering
+      \begin{tabular}{lcccccccccccccccccc}
+       \hline 
+    Dataset    &   &Balanced & Accuracy(\%)  & & & Tail-1/2(\%) &\ \  & & & Tail-1/4(\%)&\ \  & &\\ \cline{2-4} \cline{6-8} \cline{10-12} 
+    %&&&&&&&&&&&&\\
+          &Flat &CDT &SBCH  &  &Flat &CDT &SBCH & &Flat &CDT &SBCH  &\\ \hline 
+             
+       glass     &50.57  & 53.71 &\bf57.39 & &  48.53 &  54.41 &\bf61.76 & &23.08 &28.21 &\bf46.15&  \\ 
+         yeast    &53.78  &\bf54.59&\bf54.59 & &55.74 &54.05 &\bf60.64  & &57.76& 57.47  &\bf62.07 &  \\ 
+         birds    &10.90 &\bf11.79 &\bf11.79 & &\bf18.35 &16.91 &16.91 &  &9.20 &\bf11.04 &\bf11.04 &  \\
+            \hline
+     \end{tabular}
+    \end{table}
+    
+\begin{comment}    
+    \begin{table}[tbph]
+     \caption{Comparison of three approaches of Flat, CDT\cite{5} and SBCH (proposed). In SBCH, the best score of each dataset is chosen for several values of $\lambda$.}
+     \label{}
+      \centering
+      \begin{tabular}{lcccccccccccccccccc}
+       \hline 
+    Dataset    &   &Balanced & Accuracy(\%)  & & & Tail-1/2(\%) &\ \  & & & Tail-1/4(\%)&\ \  & &\\ \cline{2-4} \cline{6-8} \cline{10-12} 
+    %&&&&&&&&&&&&\\
+          &Flat &CDT &SBCH  &  &Flat &CDT &SBCH & &Flat &CDT &SBCH  &\\ \hline 
+             
+       glass     &50.57  & 53.71 &\bf57.39 & &  48.53 &  54.41 &\bf61.76 & &23.08 &28.21 &\bf46.15&  \\ 
+         yeast    &53.78  &\bf54.59&\bf54.59 & &55.74 &54.05 &\bf60.64  & &57.76& 57.47  &\bf62.07 &  \\ 
+         birds    &10.90 &11.79 &\bf12.15 & &\bf18.35 &16.91 &16.91 &  &9.20 &11.04 &\bf11.66 &  \\
+            \hline
+     \end{tabular}
+    \end{table}
+\end{comment}
+%The results are shown in Table 2. The proposed method has higher classification accuracy of minority classes (Minority1/2, Minority1/4) over all datasets, especially Minority1/4, other than Minority1/2 in birds. Improvements of the classification accuracies of minority classes results in the improvements of Balanced Accuracies of all datasets. 
+\begin{comment}
+\end{commm}
+    \begin{table}[tbph]
+       \caption{Balance parameter $\lambda$ which brought the best score of SBCH.}
+     \label{}
+      \centering
+      \begin{tabular}{llllllllll}
+       \hline 
+        Dataset & Balanced Accuracy & &Tail-1/2 & & &Tail-1/4 & &\\ \hline
+       
+         glass    &0.4  & &0.4 & &&0.4, 0.5, 0.6 & &   \\ 
+         yeast    &0.9, 1 & &\bf0, \rm0.1& &&\bf0, \rm0.1 &  & \\ 
+         birds    &0.7, 1.0 & &0.7, 1.0 && &0.4, 0.6, 1.0 &  & \\
+            \hline
+     \end{tabular}
+    \end{table}
+\end{comment}   
+\begin{comment}
+     \begin{table}[tbph]
+     \caption{Range of the degrees of separability and sample balance in datasets \tt glass \rm and \tt yeast.}
+     \label{}
+      \centering
+      \begin{tabular}{llllllllll}
+       \hline 
+        Dataset & &  separability & & sample balance  &\\ \hline
+        
+         glass   & & $\{0.76, 0.82,..., 1.0\} $& & $\{0.10, 0.11,..., 0.68\} $  & \\ 
+         yeast    & & $\{0.62, 0.74,..., 1.0\}$& & $\{0.012, 0.014,..., 0.60\}$  & \\ \hline
+     \end{tabular}
+    \end{table}
+\end{comment}
+%\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ Indeed, some values of $\lambda$ other than zero show the same performance as that by $\lambda=0.0$.
+\section{Discussion}
+The proposed SBCH is an extension of CDT\cite{5}. Indeed, CDT is a special case of SBCH for $\lambda=1.0$. In \tt birds\rm, the best tree of SBCH is obtained for $\lambda=0.7$. The reason is that we used a static graph with weights unchanged even after merging. It would be better to recalculate the entropy and the separability in a dynamic way at the expense of computation cost. Conversely, the best value $\lambda=0.0$ for \tt yeast \rm might give us an impression that we do not pay attention to the separability. However, the correct interpretation is that we may put a large priority on the sample balance if every class pairs have a similar degree of separability between them. Indeed, in \tt yeast\rm, the separabilities are in the range of $[0.62, 1.0]$. In general, a middle value of $\lambda$ exists as the optimal value in SBCH. We could use cross-validation to find it. In a long-tailed data, feature selection is also effective for improving the classification accuracy of tail classes. Indeed, another research in our laboratory demonstrates the effectiveness\cite{9}. Therefore one of future directions of this research would be to incorporate feature selection with balancing of sample numbers. In addition, there is still room for improvement in computational complexity and in application to multi-label problems.
+
+% use of static graph to find a solution, it is not an optimal solution to balance the numbers of samples in two division for an extremely distorted dataset such as \tt birds\rm. Thus, for such an dataset, entropies of two division does not improve so much even if $\lambda$ is set closer to 0.0 (see Fig. 4). As a result, relatively high value of $\lambda$ ($\lambda=0.7$) bring the best score in SBCH whose tree is almost the same as CDT ($\lambda=1.0$) especially the top part of the tree (see Fig. 4) which result in the same score. The separability and entropy change by merging classes, so that such a dynamic re-calculation may be more effective. At this time, we change $\lambda$ only in steps of $0.1$. More optimal values of $\lambda$ which brought higher score than CDT can be found by changing $\lambda$ finer than $0.1$. On the other hand, BCH with $\lambda=0.0$ seems useless because it does not take into account the class separability at all. In this sense, a middle value of $\lambda$ must bring a better performance than CDT such as $\lambda=0.4$ in \tt glass. \rm However, in \tt yeast\rm, $\lambda=0.0$ brought the best score in SBCH, meaning that the best way is taking the sample balance only, forgetting the training accuracy. This strange situations are explained as follows. In \tt yeast\rm, the separability between all pairs of classes have similar degrees of separability, $[0.62, 1.0]$, \rm so that any partition into two class subsets does not give a large impact on the separability, while the range of sample balance is large, $[0.012, 0.6]$. \rm This is the reason why $\lambda=0.0$ worked in the dataset. In general, however, there must be an optimal value of $\lambda$ between $0$ and $1$. Also, in \tt birds\rm, the best score in SBCH ($\lambda=0.7$) is the same as CDT. This is because these trees are almost the same. Especially, the top part of the trees, the important part to partition head classes, are exactly the same (see Fig. 4). More optimal values of $\lambda$ can be found by changing $\lambda$ finer than 0.1. We could use cross-validation to tune the value of $\lambda$ for example. At this time, we have used a static graph to find a solution. However, the separability and entropy change by merging classes, so that such a dynamic re-calculation may be more effective. In a long-tailed data, feature selection is also effective for improving the classification accuracy of tail classes. Indeed, another research in our laboratory demonstrates the effectiveness\cite{9}. Therefore one of future directions of research would be to incorporate feature selection and balancing of sample numbers. In addition, there is still room for improvement in computational complexity and in application to multi-label problems.
+
+%Table 3 shows parameters $\lambda$ with the best score of BCH. Most cases in the datasets (\tt glass, yeast) \rm are the best when $\lambda=0$ (sample balance only). This is due to the nature of the datasets. From Table 4, it can be found that the degrees of separability are overwhelmingly higher than that of sample balance and most of the values are very close to 1 in both datasets. Therefore, separabilities are always high in any partition which results in the best scores with $\lambda=0$. In general, there are an optimal values of the parameter between 0 (sample balance only) and 1 (separability only). The parameter can be set depending on a dataset. A lower parameters are appropriate when separabilities are high and sample balances are low in an overall dataset. On the other hand, higher parameters are appropriate when separabilities are low and sample balances are high in an overall dataset. However, it is somewhat necessary to tune the parameter using methods such as cross-validations. In a long-tailed data, a feature selection is also effective way for improving classification accuracy of minority classes and it much more improved the balanced accuracy of the long-tailed dataset (\tt birds) \rm than balancing samples\cite{17}. Therefore, applications of the proposed method after a feature selection may improve the performances further. The method proposed in \cite{17} superior to BCH in balanced accuracy of the long-tailed data (\tt birds). \rm However, its computational complexity is huge. Hence, there is a possibility that it cannot apply larger datasets. Thus, both methods should be used properly depending on datasets or objectives. In other words, when dealing with datasets whose size is considerably large or when seeking a high classification accuracy while suppressing the computational complexity, proposed BCH method or combination of BCH with a feature selection can be applied. 
+
+
+\section{Conclusion}
+We have proposed a sample-balanced class hierarchy for improving the classification accuracy of tail classes in long-tailed problems. Experimentally we confirmed that the constructed sample-balance based class hierarchy (SBCH) outperformed the accuracy-based class decision tree (CDT)\cite{5} in classification of tail classes. In order to balance the number of samples of them more appropriately, we will discuss dynamic re-calculation of separability and entropy at a node in the future.  
+
+%\section *{Acknowledgement}
+%This work was partially supported by JSPS KAKENHI Grant Number 19H04128.
+
+
+%Table 3 shows parameters $\lambda$ with the best score of BCH. Most cases in the datasets (\tt glass, yeast) \rm are the best when $\lambda=0$ (sample balance only). This is due to the nature of the datasets. From Table 4, it can be found that the degrees of separability are overwhelmingly higher than that of sample balance and most of the values are very close to 1 in both datasets. Therefore, separabilities are always high in any partition which results in the best scores with $\lambda=0$. In general, there are an optimal values of the parameter between 0 (sample balance only) and 1 (separability only). The parameter can be set depending on a dataset. A lower parameters are appropriate when separabilities are high and sample balances are low in an overall dataset. On the other hand, higher parameters are appropriate when separabilities are low and sample balances are high in an overall dataset. However, it is somewhat necessary to tune the parameter using methods such as cross-validations. In a long-tailed data, a feature selection is also effective way for improving classification accuracy of minority classes and it much more improved the balanced accuracy of the long-tailed dataset (\tt birds) \rm than balancing samples\cite{17}. Therefore, applications of the proposed method after a feature selection may improve the performances further. The method proposed in \cite{17} superior to BCH in balanced accuracy of the long-tailed data (\tt birds). \rm However, its computational complexity is huge. Hence, there is a possibility that it cannot apply larger datasets. Thus, both methods should be used properly depending on datasets or objectives. In other words, when dealing with datasets whose size is considerably large or when seeking a high classification accuracy while suppressing the computational complexity, proposed BCH method or combination of BCH with a feature selection can be applied.
+\begin{comment}
+For citations of references, we prefer the use of square brackets
+and consecutive numbers. Citations using labels or the author/year
+convention are also acceptable. The following bibliography provides
+a sample reference list with entries for journal
+
+articles~\cite{ref_article1}, an LNCS chapter~\cite{ref_lncs1}, a
+book~\cite{ref_book1}, proceedings without editors~\cite{ref_proc1},
+and a homepage~\cite{ref_url1}. Multiple citations are grouped
+\cite{ref_article1,ref_lncs1,ref_book1},
+\cite{ref_article1,ref_book1,ref_proc1,ref_url1}.
+\end{comment}
+%
+% ---- Bibliography ----
+%
+% BibTeX users should specify bibliography style 'splncs04'.
+% References will then be sorted and formatted in the correct style.
+%
+% \bibliographystyle{splncs04}
+% \bibliography{mybibliography}
+%
+
+\small
+ \addcontentsline{toc}{section}{\numberline{}文献}
+\bibliographystyle{../prml}
+
+
+\begin{thebibliography}{99}
+
+%\bibitem{1}Z.Liu et al.,"Large-Scale Long-Tailed Recognition in an Open World." Proc. of 2019 Conference on Computer Vision and Pattern Recognition (CVPR2019), 2019, Long Beach, U.S.A., 2537-2546.
+\bibitem{1}H.He et al., "Learning from Imbalanced Data" IEEE Transactions on knowledge and engineering, 21(2009), 1263-1284 　
+
+
+\bibitem{2}X.Yin et al.,"Feature Transfer Learning for Face Recognition with Under-Represented Data." Proc. of 2019 Conference on Computer Vision and Pattern Recognition(CVPR2019), 2019, Long Beach, U.S.A., 5704-5713.
+
+\bibitem{3}L.Jiang, C.Li and S.Wang,"Cost-sensitive Bayesian network classifiers." Pattern Recognition Letters, 45.(2014), 211-216
+
+\bibitem{4}
+B.Hayes, "The Easiest Hard Problem" Computing Science, 90-2(2002), 113-117
+
+\bibitem{5}K.Aoki and M.Kudo, "A Top-Down Construction of Class Decision Trees with Selected Features and Classifiers." Proc. of HPCS2010, 2010, Caen, France, 390-398
+
+\bibitem{6}K.Aoki and M.Kudo, "Decision tree using class-dependent features subsets." Proc. of the 2002 Joint IAPR Workshop on Structual, Syntactic, and Statistical Pattern Recognition(SSPR2002), 2396(2002), Springer, Berlin, Heidelberg, 761-769
+
+\bibitem{7}D.Duaand and C.Graff, "UCI Machine Learning Repository.", 2019, [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California, School of Information and Computer Science.
+
+\bibitem{8}M.Galar et al. "A Review on Ensembles for the Class Imbalance Problem:Bagging-,Boostiong-,and Hybrid-Based Approaches." IEEE Trans. on Systems, Man, and Cybernetics, Part C (Applications and Reviews), 42-4(2012), 463-484 
+\bibitem{9}
+---, "Feature Selection with Class Hierarchy for Imbalance Problems.", under review in IWAIPR2021.
+
+\bibitem{10}G.Tsoumakas et al., "Mulan: A Java Library for Multi-Label Learning.", Journal of Machine Learning Research, 12(2011), 2411-2414.
+
+\bibitem{11}
+Pedregosa et al., "Scikit-learn: Machine Learning in Python." JMLR 12(2011), 2825-2830
+
+\bibitem{12}H.Cevikalp, "New clustering algorithms for the support vector machine based hierarchical classification." Pattern Recognition Letters, 31-11(2010), 1285-1291.
+
+\bibitem{13}
+J.C.Platt, N.Cristianini and J.S.Taylor, "Large Margin DAGs for Multiclass Classification." Proc. of the 12th International Conference on Neural Information Processing Systems, 1999, 547-553
+
+%\bibitem{14}
+ %V.Vural and J.G.Dy, "A Hierachical Method for Multi-Class Support Vector Machines." Proc. of the 21st International Conference on Machine Learning, 2004, Banff, Canada, DOI: https://doi.org/10.1145/1015330.1015427
+ 
+\bibitem{14}
+N.V.Chawla et al., "SMOTE: Synthetic Minority Over-sampling Technique." Journal of Artificial Intelligence Research, 16(2002), 321-357
+
+\bibitem{15}
+A.Lorena and A.Carvalho, "Building binary-tree-based multiclass classifiers using separability measures" Neurocomputing, 73-16(2010), 2837-2845
+
+
+\end{thebibliography}
+
+\end{document}
+
+
